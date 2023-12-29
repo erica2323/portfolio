@@ -7,26 +7,23 @@
 ## Education			        		
 - Bachelors, Statistics and Data Science | The University of California Santa Barbara (_June 2023_)
 
+
 ## All Projects
-
-## Classification Projects
-
-## Regression Projects 
-
-## Natural Language Processing 
-
-## Clustering
-
-## Data Exploration and Analysis
+** Machine Learning **
+** Data Visualization **
+** Exploratory Data Analysis **
+** Data Cleaning **
 
 
-## Work Experience
-**Data Scientist @ Toyota Financial Services (_June 2022 - Present_)**
-- 
--
+## Machine Learning
+** Classification Projects **
 
-**Data Science Consultant @ Shawhin Talebi Ventures LLC (_December 2020 - Present_)**
-- 
--
+** Regression Projects **
 
+** Natural Language Processing **
+
+** Clustering **
+
+
+## Data Visualization
 
