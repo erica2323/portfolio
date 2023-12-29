@@ -7,6 +7,10 @@ B.S., Statistics and Data Science | The University of California Santa Barbara (
 
 
 ## Personal Projects
+- Machine Learning
+- Data Visualization
+- Exploratory Data Analysis (EDA)
+- Data Cleaning
 
 ## Machine Learning
 
