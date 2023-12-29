@@ -1,17 +1,18 @@
-# Erica's Data Science Portfolio
-
 # Data Scientist/Analyst
 
 #### Technical Skills: Python, SQL, Juptyer Notebook, SAS Programming, Tableau, Pandas, Seaborn, NumPy, MATLAB, Scikit‑learn
 
 ## Education			        		
-- Bachelors, Statistics and Data Science | The University of California Santa Barbara (_June 2023_)
+- B.S., Statistics and Data Science | The University of California Santa Barbara (_June 2024_)
 
 
 ## All Projects
 ** Machine Learning **
+
 ** Data Visualization **
+
 ** Exploratory Data Analysis **
+
 ** Data Cleaning **
 
 
