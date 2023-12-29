@@ -39,5 +39,9 @@ This project aims to utilize machine learning for binary classification to predi
 ### Clustering
 
 
-### Data Visualization
+## Data Visualization
+
+## Exploratory Data Analysis (EDA)
+
+## Data Cleaning
 
