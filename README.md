@@ -7,24 +7,24 @@
 
 
 ## All Projects
-** Machine Learning **
+**Machine Learning**
 
-** Data Visualization **
+**Data Visualization**
 
-** Exploratory Data Analysis **
+**Exploratory Data Analysis**
 
-** Data Cleaning **
+**Data Cleaning**
 
 
 ## Machine Learning
 
-** Time Series **
+**Time Series**
 
 - Modeling and Forecasting Industrial Production of Electric and Gas Utilities in the U.S.
 This project seeks to develop a forecasting model for precise predictions of the industrial production of gas and electricity in the United States. The methodology involves an initial dataset examination to detect potential seasonal patterns and trends using time series plots and ACF/PACF plots. For data normalization, the Box-Cox transformation is applied, followed by differencing to achieve stationarity. Various techniques are employed to identify (p’s and q’s), select (AICc value), and validate (Portmanteau Statistics) candidate models. The final model successfully forecasted the next 10 months of industrial production, as evidenced by forecasted values falling within the confidence interval and closely aligning with actual values. Through this project, we can provide valuable insights for strategic decision-making, guiding investments, and infrastructure development efforts in the future.
 
 
-** Classification Projects **
+**Classification Projects**
 
 - Exploration of Bank Churn Rates
 The purpose of this project is to explore the bank churn rates using a dataset that contains information
@@ -42,11 +42,11 @@ This project aims to utilize machine learning for binary classification to predi
 
 
 
-** Regression Projects **
+**Regression Projects**
 
-** Natural Language Processing **
+**Natural Language Processing**
 
-** Clustering **
+**Clustering**
 
 
 ## Data Visualization
