@@ -28,7 +28,7 @@ Exploration of Bank Churn Rates
 The purpose of this project is to explore the bank churn rates using a dataset that contains information about customers of a bank. The dataset includes various features such as customer demographics, credit score, geography, tenure, balance, number of products, credit card ownership, and estimated salary. The main goal is to identify the factors that are most strongly associated with customer churn and develop a predictive model to help the bank proactively address the risk of customer attrition. By analyzing the dataset, we hope to gain insights into customer behavior and preferences that can inform the bank’s customer retention strategies. Ultimately, the aim of this project is to help the bank better understand its customers and improve their overall experience with the bank.
 
 Predicting Diabetes
-
+https://github.com/PSTAT197-F23/Vignette-of-Binary-Classification
 This project aims to utilize machine learning for binary classification to predict whether a female patient (at 21 years old and of Indian heritage) has diabetes based on features such as BMI, age, glucose, blood pressure, etc. The dataset, sourced from the National Institute of Diabetes and Digestive Kidney Disease, consists of eight medical predictors and a single  “Outcome” variable. The primary objective is to develop a robust binary classification model that accurately predicts the presence or absence of diabetes in the specified demographic.
 
 
