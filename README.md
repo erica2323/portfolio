@@ -1,4 +1,4 @@
-# Data Scientist/Analyst
+Data Scientist/Analyst
 
 #### Technical Skills: Python, SQL, Juptyer Notebook, SAS Programming, Tableau, Pandas, Seaborn, NumPy, MATLAB, Scikit‑learn
 
