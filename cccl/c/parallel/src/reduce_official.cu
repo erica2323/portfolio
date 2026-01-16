@@ -1,7 +1,7 @@
 //==============================================================================
 //
 // MACA CCCL C Binding - Reduce Implementation
-// Adapted for MACA - Phase 1 (Pointer + PLUS only)
+// Adapted for MACA - Phase 2 (Pointer + PLUS/MIN/MAX)
 //
 //==============================================================================
 
@@ -12,6 +12,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <limits>
 
 //==============================================================================
 // Helper Functions
@@ -34,36 +35,84 @@ static std::string get_type_name(cccl_type_enum type) {
     }
 }
 
-static std::string get_initial_value_str(cccl_type_enum type, void* initial_value) {
-    std::stringstream ss;
-    switch (type) {
-        case CCCL_INT32:
-            ss << *(int32_t*)initial_value;
-            break;
-        case CCCL_INT64:
-            ss << *(int64_t*)initial_value << "LL";
-            break;
-        case CCCL_FLOAT32:
-            ss << *(float*)initial_value << "f";
-            break;
-        case CCCL_FLOAT64:
-            ss << *(double*)initial_value;
-            break;
-        default:
-            ss << "0";
-            break;
+static std::string get_identity_value(cccl_type_enum type, cccl_op_kind_t op) {
+    // Identity value depends on the operation
+    if (op == CCCL_PLUS) {
+        // Identity for addition is 0
+        if (type == CCCL_FLOAT32) return "0.0f";
+        if (type == CCCL_FLOAT64) return "0.0";
+        return "0";
+    } else if (op == CCCL_MINIMUM) {
+        // Identity for min is max possible value
+        switch (type) {
+            case CCCL_INT8:     return "127";
+            case CCCL_INT16:    return "32767";
+            case CCCL_INT32:    return "2147483647";
+            case CCCL_INT64:    return "9223372036854775807LL";
+            case CCCL_UINT8:    return "255";
+            case CCCL_UINT16:   return "65535";
+            case CCCL_UINT32:   return "4294967295U";
+            case CCCL_UINT64:   return "18446744073709551615ULL";
+            case CCCL_FLOAT32:  return "3.402823466e+38f";  // FLT_MAX
+            case CCCL_FLOAT64:  return "1.7976931348623158e+308";  // DBL_MAX
+            default:            return "2147483647";
+        }
+    } else if (op == CCCL_MAXIMUM) {
+        // Identity for max is min possible value
+        switch (type) {
+            case CCCL_INT8:     return "-128";
+            case CCCL_INT16:    return "-32768";
+            case CCCL_INT32:    return "-2147483648";
+            case CCCL_INT64:    return "-9223372036854775807LL - 1";
+            case CCCL_UINT8:    return "0";
+            case CCCL_UINT16:   return "0";
+            case CCCL_UINT32:   return "0U";
+            case CCCL_UINT64:   return "0ULL";
+            case CCCL_FLOAT32:  return "-3.402823466e+38f";  // -FLT_MAX
+            case CCCL_FLOAT64:  return "-1.7976931348623158e+308";  // -DBL_MAX
+            default:            return "-2147483648";
+        }
     }
-    return ss.str();
+    return "0";
+}
+
+static std::string get_reduce_op(cccl_op_kind_t op) {
+    switch (op) {
+        case CCCL_PLUS:     return "+=";
+        case CCCL_MINIMUM:  return "= min(sdata[tid], sdata[tid + s])";
+        case CCCL_MAXIMUM:  return "= max(sdata[tid], sdata[tid + s])";
+        default:            return "+=";
+    }
+}
+
+static std::string get_accumulate_op(cccl_op_kind_t op) {
+    switch (op) {
+        case CCCL_PLUS:     return "sum += d_in[i];";
+        case CCCL_MINIMUM:  return "sum = min(sum, d_in[i]);";
+        case CCCL_MAXIMUM:  return "sum = max(sum, d_in[i]);";
+        default:            return "sum += d_in[i];";
+    }
+}
+
+static std::string get_final_op(cccl_op_kind_t op) {
+    switch (op) {
+        case CCCL_PLUS:     return "sdata[0] + init_value";
+        case CCCL_MINIMUM:  return "min(sdata[0], init_value)";
+        case CCCL_MAXIMUM:  return "max(sdata[0], init_value)";
+        default:            return "sdata[0] + init_value";
+    }
 }
 
 // Generate reduction kernel source code
 static std::string generate_reduce_kernel(
     cccl_op_t op,
-    cccl_type_info type,
-    void* initial_value
+    cccl_type_info type
 ) {
     std::string type_name = get_type_name(type.type);
-    std::string init_value = get_initial_value_str(type.type, initial_value);
+    std::string identity_value = get_identity_value(type.type, op.type);
+    std::string reduce_op = get_reduce_op(op.type);
+    std::string accumulate_op = get_accumulate_op(op.type);
+    std::string final_op = get_final_op(op.type);
 
     std::stringstream ss;
 
@@ -71,21 +120,22 @@ static std::string generate_reduce_kernel(
     ss << "#include <stdint.h>\n";
     ss << "\n";
 
-    if (op.type == CCCL_PLUS) {
-        // Block-level reduction using shared memory
+    if (op.type == CCCL_PLUS || op.type == CCCL_MINIMUM || op.type == CCCL_MAXIMUM) {
+        // Single tile kernel with initial value parameter
         ss << "// Single tile kernel: for small arrays that fit in one block\n";
         ss << "extern \"C\" __global__\n";
         ss << "void reduce_single_tile_kernel(\n";
         ss << "    const " << type_name << "* __restrict__ d_in,\n";
         ss << "    " << type_name << "* __restrict__ d_out,\n";
-        ss << "    unsigned long long n\n";
+        ss << "    unsigned long long n,\n";
+        ss << "    " << type_name << " init_value\n";
         ss << ") {\n";
         ss << "    __shared__ " << type_name << " sdata[256];\n";
         ss << "    unsigned int tid = threadIdx.x;\n";
         ss << "    unsigned long long idx = blockIdx.x * blockDim.x + threadIdx.x;\n";
         ss << "\n";
         ss << "    // Load data into shared memory\n";
-        ss << "    " << type_name << " val = " << init_value << ";\n";
+        ss << "    " << type_name << " val = " << identity_value << ";\n";
         ss << "    if (idx < n) {\n";
         ss << "        val = d_in[idx];\n";
         ss << "    }\n";
@@ -95,14 +145,14 @@ static std::string generate_reduce_kernel(
         ss << "    // Reduce in shared memory\n";
         ss << "    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {\n";
         ss << "        if (tid < s) {\n";
-        ss << "            sdata[tid] += sdata[tid + s];\n";
+        ss << "            sdata[tid] " << reduce_op << ";\n";
         ss << "        }\n";
         ss << "        __syncthreads();\n";
         ss << "    }\n";
         ss << "\n";
-        ss << "    // Write result\n";
+        ss << "    // Write result (combine with initial value)\n";
         ss << "    if (tid == 0) {\n";
-        ss << "        d_out[0] = sdata[0];\n";
+        ss << "        d_out[0] = " << final_op << ";\n";
         ss << "    }\n";
         ss << "}\n";
         ss << "\n";
@@ -121,9 +171,9 @@ static std::string generate_reduce_kernel(
         ss << "    unsigned long long gridSize = blockDim.x * gridDim.x;\n";
         ss << "\n";
         ss << "    // Grid-stride loop to accumulate values\n";
-        ss << "    " << type_name << " sum = " << init_value << ";\n";
+        ss << "    " << type_name << " sum = " << identity_value << ";\n";
         ss << "    for (unsigned long long i = idx; i < n; i += gridSize) {\n";
-        ss << "        sum += d_in[i];\n";
+        ss << "        " << accumulate_op << "\n";
         ss << "    }\n";
         ss << "    sdata[tid] = sum;\n";
         ss << "    __syncthreads();\n";
@@ -131,7 +181,7 @@ static std::string generate_reduce_kernel(
         ss << "    // Block-level reduction in shared memory\n";
         ss << "    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {\n";
         ss << "        if (tid < s) {\n";
-        ss << "            sdata[tid] += sdata[tid + s];\n";
+        ss << "            sdata[tid] " << reduce_op << ";\n";
         ss << "        }\n";
         ss << "        __syncthreads();\n";
         ss << "    }\n";
@@ -143,7 +193,7 @@ static std::string generate_reduce_kernel(
         ss << "}\n";
     } else {
         // Unsupported operation
-        ss << "// Error: Only CCCL_PLUS is supported in Phase 1\n";
+        ss << "// Error: Only CCCL_PLUS, CCCL_MINIMUM, CCCL_MAXIMUM are supported\n";
         ss << "extern \"C\" __global__ void reduce_single_tile_kernel() {}\n";
         ss << "extern \"C\" __global__ void reduce_kernel() {}\n";
     }
@@ -166,15 +216,15 @@ mcError_t cccl_device_reduce_build(
         return mcErrorInvalidValue;
     }
 
-    // Phase 1: Only support CCCL_PLUS
-    if (op.type != CCCL_PLUS) {
-        std::cerr << "Error: Phase 1 only supports CCCL_PLUS operation" << std::endl;
+    // Phase 2: Support PLUS, MINIMUM, MAXIMUM
+    if (op.type != CCCL_PLUS && op.type != CCCL_MINIMUM && op.type != CCCL_MAXIMUM) {
+        std::cerr << "Error: Only CCCL_PLUS, CCCL_MINIMUM, CCCL_MAXIMUM are supported" << std::endl;
         return mcErrorInvalidValue;
     }
 
     try {
         // 1. Generate kernel source code
-        std::string kernel_src = generate_reduce_kernel(op, type, initial_value);
+        std::string kernel_src = generate_reduce_kernel(op, type);
         std::cout << "Generated reduce kernel:\n" << kernel_src << std::endl;
 
         // 2. Create MCRTC program
@@ -312,7 +362,7 @@ mcError_t cccl_device_reduce(
             // Small data: use single tile kernel
             std::cout << "Using single tile kernel for " << num_items << " items" << std::endl;
 
-            void* args[] = { &d_in, &d_out, &num_items };
+            void* args[] = { &d_in, &d_out, &num_items, build.initial_value };
 
             mcError_t err = mcModuleLaunchKernel(
                 build.single_tile_kernel,
@@ -368,9 +418,9 @@ mcError_t cccl_device_reduce(
                 return err;
             }
 
-            // Phase 2: Final reduction of block results
+            // Phase 2: Final reduction of block results (with initial value)
             uint64_t temp_items = actual_blocks;
-            void* args2[] = { &d_temp, &d_out, &temp_items };
+            void* args2[] = { &d_temp, &d_out, &temp_items, build.initial_value };
 
             err = mcModuleLaunchKernel(
                 build.single_tile_kernel,

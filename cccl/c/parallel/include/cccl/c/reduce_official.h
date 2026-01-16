@@ -1,7 +1,7 @@
 //==============================================================================
 //
 // MACA CCCL C Binding - Reduce API
-// Adapted for MACA - Phase 1 (Pointer + PLUS only)
+// Adapted for MACA - Phase 2 (Pointer + PLUS/MIN/MAX)
 //
 //==============================================================================
 
@@ -37,9 +37,9 @@ typedef struct
  * Build phase: Compile reduce kernels
  *
  * @param build         Output: compilation result
- * @param op            Reduction operation (Phase 1: only CCCL_PLUS supported)
+ * @param op            Reduction operation (CCCL_PLUS, CCCL_MINIMUM, CCCL_MAXIMUM)
  * @param type          Data type (int32, float32, etc.)
- * @param initial_value Pointer to initial value (e.g., 0 for sum)
+ * @param initial_value Pointer to initial value (e.g., 0 for sum, INT_MAX for min)
  * @param build_config  Build configuration (optional, can be NULL)
  * @return mcSuccess or error code
  */
