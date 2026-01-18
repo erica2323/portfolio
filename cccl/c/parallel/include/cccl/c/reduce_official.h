@@ -1,7 +1,7 @@
 //==============================================================================
 //
 // MACA CCCL C Binding - Reduce API
-// Adapted for MACA - Phase 3 (Iterator Support)
+// Adapted for MACA - Phase 4 (mcCub Integration)
 //
 //==============================================================================
 
@@ -19,14 +19,9 @@ extern "C" {
 // Reduce API
 //==============================================================================
 
-// Build result: stores compiled kernels
+// Build result: stores configuration for mcCub calls
 typedef struct
 {
-    void* bitcode;                     // Compiled LLVM bitcode
-    size_t bitcode_size;               // Bitcode size in bytes
-    mcModule_t module;                 // MACA module
-    mcFunction_t single_tile_kernel;   // Kernel for small data (single tile)
-    mcFunction_t reduction_kernel;     // Kernel for large data (multi-tile)
     cccl_type_info type;               // Data type
     cccl_op_t op;                      // Operation
     void* initial_value;               // Initial value for reduction
@@ -71,13 +66,14 @@ static inline cccl_iterator_t cccl_make_pointer_iterator(
 //==============================================================================
 
 /**
- * Build phase: Compile reduce kernels (iterator version)
+ * Build phase: Save reduce configuration (iterator version)
+ * Note: With mcCub integration, no JIT compilation is needed
  *
- * @param build         Output: compilation result
+ * @param build         Output: configuration result
  * @param op            Reduction operation (CCCL_PLUS, CCCL_MINIMUM, CCCL_MAXIMUM)
  * @param d_in          Input iterator
  * @param initial_value Pointer to initial value
- * @param build_config  Build configuration (optional, can be NULL)
+ * @param build_config  Build configuration (optional, can be NULL - ignored in mcCub mode)
  * @return mcSuccess or error code
  */
 mcError_t cccl_device_reduce_build_ex(
@@ -89,13 +85,14 @@ mcError_t cccl_device_reduce_build_ex(
 );
 
 /**
- * Build phase: Compile reduce kernels (pointer version - backward compatible)
+ * Build phase: Save reduce configuration (pointer version - backward compatible)
+ * Note: With mcCub integration, no JIT compilation is needed
  *
- * @param build         Output: compilation result
+ * @param build         Output: configuration result
  * @param op            Reduction operation
  * @param type          Data type
  * @param initial_value Pointer to initial value
- * @param build_config  Build configuration (optional, can be NULL)
+ * @param build_config  Build configuration (optional, can be NULL - ignored in mcCub mode)
  * @return mcSuccess or error code
  */
 mcError_t cccl_device_reduce_build(
