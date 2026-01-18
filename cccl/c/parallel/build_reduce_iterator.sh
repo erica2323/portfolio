@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# MACA CCCL Reduce Iterator 编译脚本 (Phase 3)
+# MACA CCCL Reduce Iterator 编译脚本 (Phase 4: mcCub Integration)
 
 set -e
 
 echo "=============================================================="
-echo "  MACA CCCL Reduce Iterator Build (Phase 3)                  "
+echo "  MACA CCCL Reduce Build (Phase 4: mcCub Integration)      "
 echo "=============================================================="
 echo ""
 
@@ -27,12 +27,12 @@ echo "✅ mxcc found at: $(which mxcc)"
 echo ""
 
 # 编译选项
-INCLUDE_DIRS="-I./parallel/include -I$MACA_PATH/include"
+INCLUDE_DIRS="-I./parallel/include -I$MACA_PATH/include -I/mnt/data/minxi/1_15/mcCub"
 LIBRARY_DIRS="-L$MACA_PATH/lib -L$MACA_PATH/lib64"
 LIBRARIES="-lmcruntime"
 
 echo "=============================================================="
-echo " Compiling reduce with iterator support..."
+echo " Compiling reduce with mcCub integration..."
 echo "=============================================================="
 
 mxcc -xmaca \
@@ -53,14 +53,14 @@ if [ $? -eq 0 ]; then
     echo "=============================================================="
     echo " Executable: test_reduce_iterator"
     echo ""
-    echo " Phase 3 Implementation:"
-    echo "   • Iterator support (pointer and custom)"
+    echo " Phase 4 Implementation (mcCub Integration):"
+    echo "   • Uses mcCub DeviceReduce::Sum/Min/Max"
+    echo "   • No JIT compilation (uses pre-compiled CUB kernels)"
+    echo "   • Full iterator support"
+    echo "   • CCCL_PLUS, CCCL_MINIMUM, CCCL_MAXIMUM operations"
+    echo "   • Support for int32, float32"
+    echo "   • Highly optimized CUB kernels"
     echo "   • Backward compatibility maintained"
-    echo "   • cccl_make_pointer_iterator() helper"
-    echo "   • _ex versions for new iterator API"
-    echo "   • Foundation for strided/custom iterators"
-    echo "   • CCCL_PLUS, CCCL_MINIMUM, CCCL_MAXIMUM"
-    echo "   • JIT compilation with MCRTC"
     echo ""
     echo " Run with: ./test_reduce_iterator"
     echo ""

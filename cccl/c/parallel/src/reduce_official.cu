@@ -6,13 +6,11 @@
 //==============================================================================
 
 #include <cccl/c/reduce_official.h>
-#include <mccub/device/device_reduce.cuh>
-#include <mccub/iterator/iterator_wrapper.cuh>
 #include <cstring>
 #include <iostream>
 
-// Include mcCub operators
-namespace cub = mccub;
+// Include mcCub
+#include <mccub/device/device_reduce.cuh>
 
 //==============================================================================
 // Build Functions
@@ -107,7 +105,7 @@ mcError_t cccl_device_reduce_ex(
                         int32_t init_val = *(int32_t*)build.initial_value;
 
                         // Query temp storage size
-                        err = cub::DeviceReduce::Sum(
+                        err = mccub::DeviceReduce::Sum(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -118,7 +116,7 @@ mcError_t cccl_device_reduce_ex(
                         if (err != mcSuccess) return err;
 
                         // Run reduction
-                        err = cub::DeviceReduce::Sum(
+                        err = mccub::DeviceReduce::Sum(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -136,7 +134,7 @@ mcError_t cccl_device_reduce_ex(
                         float* d_out_typed = (float*)d_out;
                         float init_val = *(float*)build.initial_value;
 
-                        err = cub::DeviceReduce::Sum(
+                        err = mccub::DeviceReduce::Sum(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -145,7 +143,7 @@ mcError_t cccl_device_reduce_ex(
                         err = mcMalloc(&d_temp_storage, temp_storage_bytes);
                         if (err != mcSuccess) return err;
 
-                        err = cub::DeviceReduce::Sum(
+                        err = mccub::DeviceReduce::Sum(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -171,7 +169,7 @@ mcError_t cccl_device_reduce_ex(
                         int32_t* d_in_typed = (int32_t*)d_in_ptr;
                         int32_t* d_out_typed = (int32_t*)d_out;
 
-                        err = cub::DeviceReduce::Min(
+                        err = mccub::DeviceReduce::Min(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -180,7 +178,7 @@ mcError_t cccl_device_reduce_ex(
                         err = mcMalloc(&d_temp_storage, temp_storage_bytes);
                         if (err != mcSuccess) return err;
 
-                        err = cub::DeviceReduce::Min(
+                        err = mccub::DeviceReduce::Min(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -191,7 +189,7 @@ mcError_t cccl_device_reduce_ex(
                         float* d_in_typed = (float*)d_in_ptr;
                         float* d_out_typed = (float*)d_out;
 
-                        err = cub::DeviceReduce::Min(
+                        err = mccub::DeviceReduce::Min(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -200,7 +198,7 @@ mcError_t cccl_device_reduce_ex(
                         err = mcMalloc(&d_temp_storage, temp_storage_bytes);
                         if (err != mcSuccess) return err;
 
-                        err = cub::DeviceReduce::Min(
+                        err = mccub::DeviceReduce::Min(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -222,7 +220,7 @@ mcError_t cccl_device_reduce_ex(
                         int32_t* d_in_typed = (int32_t*)d_in_ptr;
                         int32_t* d_out_typed = (int32_t*)d_out;
 
-                        err = cub::DeviceReduce::Max(
+                        err = mccub::DeviceReduce::Max(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -231,7 +229,7 @@ mcError_t cccl_device_reduce_ex(
                         err = mcMalloc(&d_temp_storage, temp_storage_bytes);
                         if (err != mcSuccess) return err;
 
-                        err = cub::DeviceReduce::Max(
+                        err = mccub::DeviceReduce::Max(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -242,7 +240,7 @@ mcError_t cccl_device_reduce_ex(
                         float* d_in_typed = (float*)d_in_ptr;
                         float* d_out_typed = (float*)d_out;
 
-                        err = cub::DeviceReduce::Max(
+                        err = mccub::DeviceReduce::Max(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
@@ -251,7 +249,7 @@ mcError_t cccl_device_reduce_ex(
                         err = mcMalloc(&d_temp_storage, temp_storage_bytes);
                         if (err != mcSuccess) return err;
 
-                        err = cub::DeviceReduce::Max(
+                        err = mccub::DeviceReduce::Max(
                             d_temp_storage, temp_storage_bytes,
                             d_in_typed, d_out_typed, (int)num_items, stream
                         );
