@@ -12,6 +12,9 @@
 // Include mcCub
 #include <mccub/device/device_reduce.cuh>
 
+// mcCub is in thrust::mccub namespace
+using namespace thrust;
+
 //==============================================================================
 // Build Functions
 //==============================================================================
