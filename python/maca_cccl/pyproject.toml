@@ -1,0 +1,32 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "setuptools_scm", "cython>=3.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "maca-cccl"
+version = "0.1.0"
+description = "Python bindings for MACA CCCL (Core Compute Libraries)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+
+dependencies = [
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-xdist",
+]
+
+[tool.scikit-build]
+cmake.minimum-version = "3.21"
+cmake.build-type = "Release"
+wheel.packages = ["python/maca_cccl"]
+
+[tool.cibuildwheel]
+build-frontend = "build"
