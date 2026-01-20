@@ -1,21 +1,39 @@
 //==============================================================================
-// Type Info Mapping for JIT Templates
-// Maps CCCL C types to C++ type names for code generation
+//
+// Part of CUDA Experimental in CUDA C++ Core Libraries,
+// under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
+//
 //==============================================================================
 
 #pragma once
 
+#ifndef _CCCL_C_PARALLEL_JIT_TEMPLATES_PREPROCESS
+#  include "../traits.h"
+#endif
+
 #include <cccl/c/types_official.h>
 #include <string>
-#include <sstream>
+#include <format>
 
 namespace cccl {
 namespace jit {
 
-// Get C++ type name from cccl_type_info
-inline std::string type_to_name(cccl_type_enum type, bool with_namespace = false) {
-    std::string prefix = with_namespace ? "::cub::" : "";
+//==============================================================================
+// Type Info Mapping
+//==============================================================================
 
+// Type mapping template - maps C types to C++ types
+template <typename T>
+struct cccl_type_info_mapping
+{
+  using Type = T;
+};
+
+// Convert cccl_type_enum to C++ type name string
+inline std::string cccl_type_enum_to_name(cccl_type_enum type) {
     switch (type) {
         case CCCL_INT8:     return "int8_t";
         case CCCL_INT16:    return "int16_t";
@@ -32,28 +50,33 @@ inline std::string type_to_name(cccl_type_enum type, bool with_namespace = false
     }
 }
 
-// Get size of type
-inline size_t type_size(cccl_type_enum type) {
-    switch (type) {
-        case CCCL_INT8:
-        case CCCL_UINT8:    return 1;
-        case CCCL_INT16:
-        case CCCL_UINT16:
-        case CCCL_FLOAT16:  return 2;
-        case CCCL_INT32:
-        case CCCL_UINT32:
-        case CCCL_FLOAT32:  return 4;
-        case CCCL_INT64:
-        case CCCL_UINT64:
-        case CCCL_FLOAT64:  return 8;
-        default:            return 4;
-    }
-}
+//==============================================================================
+// Parameter Mapping for cccl_type_info
+//==============================================================================
 
-// Get alignment of type
-inline size_t type_alignment(cccl_type_enum type) {
-    return type_size(type);  // For primitive types, alignment == size
-}
+#ifndef _CCCL_C_PARALLEL_JIT_TEMPLATES_PREPROCESS
+
+template <>
+struct parameter_mapping<cccl_type_info>
+{
+  static const constexpr auto archetype = cccl_type_info_mapping<int>{};
+
+  template <typename TpId>
+  static std::string map(TpId, cccl_type_info arg)
+  {
+    return std::format("cccl_type_info_mapping<{}>{{}}",
+                       cccl_type_enum_to_name(arg.type));
+  }
+
+  template <typename TpId>
+  static std::string aux(TpId, cccl_type_info)
+  {
+    // No auxiliary code needed for basic types
+    return {};
+  }
+};
+
+#endif // _CCCL_C_PARALLEL_JIT_TEMPLATES_PREPROCESS
 
 } // namespace jit
 } // namespace cccl

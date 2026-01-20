@@ -1,170 +1,131 @@
 //==============================================================================
-// Iterator Mapping for JIT Templates
-// Complete iterator type system matching NVIDIA CCCL
+//
+// Part of CUDA Experimental in CUDA C++ Core Libraries,
+// under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
+//
 //==============================================================================
 
 #pragma once
 
+#ifndef _CCCL_C_PARALLEL_JIT_TEMPLATES_PREPROCESS
+#  include "../traits.h"
+#  include "type_info.h"
+#endif
+
 #include <cccl/c/types_official.h>
 #include <string>
-#include <sstream>
-#include "type_info.h"
+#include <format>
 
 namespace cccl {
 namespace jit {
 
 //==============================================================================
-// Iterator State Information
+// Iterator Mapping
 //==============================================================================
 
-struct iterator_state_info {
-    std::string type_name;
-    size_t size;
-    size_t alignment;
-    bool has_state;
+template <typename ValueTp>
+struct cccl_iterator_t_mapping
+{
+  bool is_pointer     = false;
+  int size            = 1;
+  int alignment       = 1;
+  void (*advance)(void*, cuda::std::uint64_t) = nullptr;
+  ValueTp (*dereference)(const void*)         = nullptr;
+  void (*assign)(const void*, ValueTp)        = nullptr;
+
+  using ValueT = ValueTp;
 };
 
-// Get iterator state info
-inline iterator_state_info get_iterator_state_info(const cccl_iterator_t& it) {
-    iterator_state_info info;
-    info.type_name = type_to_name(it.value_type.type);
-    info.size = it.value_type.size;
-    info.alignment = it.value_type.alignment;
+// Trait tags for iterator types
+struct input_iterator_traits;
+struct output_iterator_traits;
 
-    switch (it.type) {
-        case CCCL_POINTER:
-            // Simple pointer - state is just the pointer
-            info.has_state = true;
-            info.size = sizeof(void*);
-            info.alignment = alignof(void*);
-            break;
+//==============================================================================
+// Parameter Mapping for cccl_iterator_t
+//==============================================================================
 
-        case CCCL_ITERATOR:
-            // Custom iterator - may have state
-            info.has_state = true;
-            // State size determined by iterator implementation
-            break;
+#ifndef _CCCL_C_PARALLEL_JIT_TEMPLATES_PREPROCESS
 
-        default:
-            info.has_state = false;
-            break;
+template <>
+struct parameter_mapping<cccl_iterator_t>
+{
+  static const constexpr auto archetype = cccl_iterator_t_mapping<int>{};
+
+  template <typename Traits>
+  static std::string map(template_id<Traits>, cccl_iterator_t arg)
+  {
+    bool is_pointer = (arg.type == cccl_iterator_kind_t::CCCL_POINTER);
+    std::string value_type = cccl_type_enum_to_name(arg.value_type.type);
+
+    // Determine which function pointer field to use
+    std::string func_field;
+    std::string func_name;
+
+    if constexpr (std::is_same_v<Traits, output_iterator_traits>)
+    {
+      func_field = "assign";
+      func_name = arg.assign.name ? arg.assign.name : "nullptr";
+    }
+    else
+    {
+      func_field = "dereference";
+      func_name = arg.dereference.name ? arg.dereference.name : "nullptr";
     }
 
-    return info;
-}
+    return std::format(
+      "cccl_iterator_t_mapping<{}>{{.is_pointer = {}, .size = {}, .alignment = {}, .advance = {}, .{} = {}}}",
+      value_type,
+      is_pointer,
+      arg.size,
+      arg.alignment,
+      arg.advance.name ? arg.advance.name : "nullptr",
+      func_field,
+      func_name);
+  }
 
-//==============================================================================
-// Iterator Specialization Detection
-//==============================================================================
+  template <typename Traits>
+  static std::string aux(template_id<Traits>, cccl_iterator_t arg)
+  {
+    std::string value_type = cccl_type_enum_to_name(arg.value_type.type);
+    std::string advance_name = arg.advance.name ? arg.advance.name : "advance_func";
 
-struct iterator_specialization {
-    bool is_pointer;
-    bool has_custom_code;
-    std::string code;
+    if constexpr (std::is_same_v<Traits, output_iterator_traits>)
+    {
+      // Output iterator: needs advance + assign
+      std::string assign_name = arg.assign.name ? arg.assign.name : "assign_func";
+
+      return std::format(R"output(
+// Output iterator auxiliary functions
+extern "C" __device__ void {0}(void *, {1});
+extern "C" __device__ void {2}(const void *, {3});
+)output",
+                         advance_name,
+                         cccl_type_enum_to_name(cccl_type_enum::CCCL_UINT64),
+                         assign_name,
+                         value_type);
+    }
+    else
+    {
+      // Input iterator: needs advance + dereference
+      std::string deref_name = arg.dereference.name ? arg.dereference.name : "deref_func";
+
+      return std::format(R"input(
+// Input iterator auxiliary functions
+extern "C" __device__ void {0}(void *, {1});
+extern "C" __device__ {2} {3}(const void *);
+)input",
+                         advance_name,
+                         cccl_type_enum_to_name(cccl_type_enum::CCCL_UINT64),
+                         value_type,
+                         deref_name);
+    }
+  }
 };
 
-inline iterator_specialization detect_specialization(const cccl_iterator_t& it) {
-    iterator_specialization spec;
-    spec.is_pointer = (it.type == CCCL_POINTER);
-    spec.has_custom_code = (it.dereference.code != nullptr && strlen(it.dereference.code) > 0);
-    spec.code = spec.has_custom_code ? it.dereference.code : "";
-    return spec;
-}
-
-//==============================================================================
-// Iterator Traits Generation
-//==============================================================================
-
-// Generate iterator traits (matching C++ iterator requirements)
-inline std::string generate_iterator_traits(
-    const std::string& iterator_name,
-    const std::string& value_type,
-    const std::string& tag = "::cub::detail::random_access_iterator_tag"
-) {
-    std::stringstream ss;
-
-    ss << "    // Iterator traits (C++ standard)\n";
-    ss << "    using iterator_category = " << tag << ";\n";
-    ss << "    using difference_type   = ::cub::detail::size_t;\n";
-    ss << "    using value_type        = " << value_type << ";\n";
-    ss << "    using reference         = value_type&;\n";
-    ss << "    using pointer           = value_type*;\n";
-
-    return ss.str();
-}
-
-//==============================================================================
-// Iterator Operators Generation
-//==============================================================================
-
-// Generate full set of iterator operators
-inline std::string generate_iterator_operators(
-    const std::string& value_type,
-    bool has_custom_deref,
-    const std::string& deref_impl
-) {
-    std::stringstream ss;
-
-    // operator* (dereference)
-    ss << "    __device__ __forceinline__\n";
-    ss << "    value_type operator*() const {\n";
-    if (has_custom_deref) {
-        ss << "        " << deref_impl << "\n";
-    } else {
-        ss << "        return *ptr;\n";
-    }
-    ss << "    }\n\n";
-
-    // operator[] (index access)
-    ss << "    __device__ __forceinline__\n";
-    ss << "    value_type operator[](difference_type idx) const {\n";
-    if (has_custom_deref) {
-        ss << "        auto temp = *this;\n";
-        ss << "        temp += idx;\n";
-        ss << "        return *temp;\n";
-    } else {
-        ss << "        return ptr[idx];\n";
-    }
-    ss << "    }\n\n";
-
-    // operator+= (advance)
-    ss << "    __device__ __forceinline__\n";
-    ss << "    iterator_type& operator+=(difference_type diff) {\n";
-    ss << "        ptr += diff;\n";
-    ss << "        return *this;\n";
-    ss << "    }\n\n";
-
-    // operator+ (offset)
-    ss << "    __device__ __forceinline__\n";
-    ss << "    iterator_type operator+(difference_type diff) const {\n";
-    ss << "        iterator_type result = *this;\n";
-    ss << "        result += diff;\n";
-    ss << "        return result;\n";
-    ss << "    }\n\n";
-
-    // operator-= (retreat)
-    ss << "    __device__ __forceinline__\n";
-    ss << "    iterator_type& operator-=(difference_type diff) {\n";
-    ss << "        ptr -= diff;\n";
-    ss << "        return *this;\n";
-    ss << "    }\n\n";
-
-    // operator- (reverse offset)
-    ss << "    __device__ __forceinline__\n";
-    ss << "    iterator_type operator-(difference_type diff) const {\n";
-    ss << "        iterator_type result = *this;\n";
-    ss << "        result -= diff;\n";
-    ss << "        return result;\n";
-    ss << "    }\n\n";
-
-    // operator- (difference)
-    ss << "    __device__ __forceinline__\n";
-    ss << "    difference_type operator-(const iterator_type& other) const {\n";
-    ss << "        return ptr - other.ptr;\n";
-    ss << "    }\n";
-
-    return ss.str();
-}
+#endif // _CCCL_C_PARALLEL_JIT_TEMPLATES_PREPROCESS
 
 } // namespace jit
 } // namespace cccl
