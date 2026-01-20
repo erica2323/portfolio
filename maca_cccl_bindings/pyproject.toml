@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "Cython>=0.29", "numpy>=1.19"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maca-cccl"
+version = "0.1.0"
+description = "MACA CCCL Python bindings for GPU-accelerated parallel algorithms"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["maca", "gpu", "parallel", "algorithms", "cccl", "moore-threads"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Cython",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "numpy>=1.19",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/maca-cccl"
+Documentation = "https://maca-cccl.readthedocs.io"
+Repository = "https://github.com/yourusername/maca-cccl.git"
+"Bug Tracker" = "https://github.com/yourusername/maca-cccl/issues"
+
+[tool.black]
+line-length = 100
+target-version = ['py37', 'py38', 'py39', 'py310']
+
+[tool.mypy]
+python_version = "3.7"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=maca_cccl --cov-report=html --cov-report=term"
