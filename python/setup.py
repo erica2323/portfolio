@@ -19,8 +19,8 @@ CCCL_ROOT = os.environ.get('CCCL_PATH', '/path/to/cccl')
 # Include directories
 include_dirs = [
     np.get_include(),
-    f"{CCCL_ROOT}/parallel/include",      # For cccl/c/*.h
-    f"{MACA_ROOT}/include",                # For mc_runtime.h
+    f"{CCCL_ROOT}/c/parallel/include",    # For cccl/c/*.h (note: c/parallel not just parallel)
+    f"{MACA_ROOT}/include",                # For mc_runtime.h (mcr/mc_runtime.h will be found here)
 ]
 
 # Library directories

@@ -11,7 +11,7 @@ from libc.stdint cimport uint64_t, int32_t
 from libc.stdlib cimport malloc, free
 
 # MACA runtime types
-cdef extern from "mc_runtime.h":
+cdef extern from "mcr/mc_runtime.h":
     ctypedef int mcError_t
     ctypedef void* mcStream_t
 
@@ -41,30 +41,55 @@ cdef extern from "cccl/c/types_official.h":
         CCCL_TYPE_FLOAT64 = 9
 
     ctypedef enum cccl_op_kind_t:
-        CCCL_SUM = 0
-        CCCL_MIN = 1
-        CCCL_MAX = 2
-        CCCL_PROD = 3
+        CCCL_PLUS = 2
+        CCCL_MINIMUM = 22
+        CCCL_MAXIMUM = 23
+        CCCL_MULTIPLIES = 4
 
-    ctypedef struct cccl_iterator_t:
-        void* state
+    ctypedef enum cccl_iterator_kind_t:
+        CCCL_ITERATOR_POINTER = 0
+
+    ctypedef enum cccl_op_code_type:
+        CCCL_OP_CODE_PTXAS = 0
+
+    ctypedef struct cccl_type_info:
         cccl_type_enum type
         size_t size
         size_t alignment
 
-    ctypedef struct cccl_value_t:
-        void* state
-        cccl_type_enum type
-        size_t size
-        size_t alignment
+    ctypedef void* cccl_host_op_fn_ptr_t
 
     ctypedef struct cccl_op_t:
         cccl_op_kind_t type
-        void* state
+        const char* name
+        const char* code
+        size_t code_size
+        cccl_op_code_type code_type
         size_t size
         size_t alignment
+        void* state
 
-    ctypedef void* cccl_device_reduce_build_result_t
+    ctypedef struct cccl_value_t:
+        cccl_type_info type
+        void* state
+
+    ctypedef struct cccl_iterator_t:
+        size_t size
+        size_t alignment
+        cccl_iterator_kind_t type
+        cccl_op_t advance
+        cccl_op_t dereference
+        cccl_type_info value_type
+        void* state
+        cccl_host_op_fn_ptr_t host_advance
+
+    # The actual struct from user's header
+    ctypedef struct cccl_device_reduce_build_result_t:
+        cccl_type_info type
+        cccl_op_t op
+        void* initial_value
+        size_t initial_value_size
+        cccl_iterator_t d_in_iterator
 
 
 # CCCL reduce API
@@ -119,9 +144,15 @@ def reduce_build(
     """
     Build reduce operation (Phase 1).
 
-    Returns build handle (void*).
+    Returns build handle (pointer as size_t).
     """
-    cdef cccl_device_reduce_build_result_t build
+    # Allocate build result on heap
+    cdef cccl_device_reduce_build_result_t* build = <cccl_device_reduce_build_result_t*>malloc(
+        sizeof(cccl_device_reduce_build_result_t)
+    )
+    if build == NULL:
+        raise MemoryError("Failed to allocate build result struct")
+
     cdef cccl_iterator_t d_in
     cdef cccl_iterator_t d_out
     cdef cccl_op_t op
@@ -130,31 +161,44 @@ def reduce_build(
 
     # Setup input iterator
     d_in.state = <void*><size_t>d_in_ptr
-    d_in.type = <cccl_type_enum>type_enum
     d_in.size = dtype_size
     d_in.alignment = dtype_alignment
+    d_in.type = CCCL_ITERATOR_POINTER
+    d_in.value_type.type = <cccl_type_enum>type_enum
+    d_in.value_type.size = dtype_size
+    d_in.value_type.alignment = dtype_alignment
+    # Zero out function pointers
+    d_in.host_advance = NULL
 
     # Setup output iterator
     d_out.state = <void*><size_t>d_out_ptr
-    d_out.type = <cccl_type_enum>type_enum
     d_out.size = dtype_size
     d_out.alignment = dtype_alignment
+    d_out.type = CCCL_ITERATOR_POINTER
+    d_out.value_type.type = <cccl_type_enum>type_enum
+    d_out.value_type.size = dtype_size
+    d_out.value_type.alignment = dtype_alignment
+    d_out.host_advance = NULL
 
     # Setup operator
     op.type = <cccl_op_kind_t>op_kind
-    op.state = NULL
+    op.name = NULL
+    op.code = NULL
+    op.code_size = 0
+    op.code_type = CCCL_OP_CODE_PTXAS
     op.size = 0
     op.alignment = 1
+    op.state = NULL
 
     # Setup init value
+    h_init.type.type = <cccl_type_enum>type_enum
+    h_init.type.size = dtype_size
+    h_init.type.alignment = dtype_alignment
     h_init.state = <void*><size_t>init_value
-    h_init.type = <cccl_type_enum>type_enum
-    h_init.size = dtype_size
-    h_init.alignment = dtype_alignment
 
-    # Call C API
+    # Call C API (pass pointer to build)
     err = cccl_device_reduce_build(
-        &build,
+        build,
         d_in,
         d_out,
         op,
@@ -168,8 +212,10 @@ def reduce_build(
     )
 
     if err != 0:
+        free(build)
         raise RuntimeError(f"cccl_device_reduce_build failed with error {err}")
 
+    # Return pointer as size_t
     return <size_t>build
 
 
@@ -192,7 +238,10 @@ def reduce_execute(
     1. Pass d_temp_storage=NULL to query temp storage size
     2. Allocate temp storage and execute with it
     """
-    cdef cccl_device_reduce_build_result_t build = <cccl_device_reduce_build_result_t><size_t>build_handle
+    # Cast build_handle back to pointer, then dereference for passing by value
+    cdef cccl_device_reduce_build_result_t* build_ptr = <cccl_device_reduce_build_result_t*><size_t>build_handle
+    cdef cccl_device_reduce_build_result_t build = build_ptr[0]  # Dereference
+
     cdef cccl_iterator_t d_in
     cdef cccl_iterator_t d_out
     cdef cccl_op_t op
@@ -202,32 +251,44 @@ def reduce_execute(
     cdef void* d_temp_storage = NULL
     cdef mcError_t err
 
-    # Setup iterators
+    # Setup iterators (same as build)
     d_in.state = <void*><size_t>d_in_ptr
-    d_in.type = <cccl_type_enum>type_enum
     d_in.size = dtype_size
     d_in.alignment = dtype_alignment
+    d_in.type = CCCL_ITERATOR_POINTER
+    d_in.value_type.type = <cccl_type_enum>type_enum
+    d_in.value_type.size = dtype_size
+    d_in.value_type.alignment = dtype_alignment
+    d_in.host_advance = NULL
 
     d_out.state = <void*><size_t>d_out_ptr
-    d_out.type = <cccl_type_enum>type_enum
     d_out.size = dtype_size
     d_out.alignment = dtype_alignment
+    d_out.type = CCCL_ITERATOR_POINTER
+    d_out.value_type.type = <cccl_type_enum>type_enum
+    d_out.value_type.size = dtype_size
+    d_out.value_type.alignment = dtype_alignment
+    d_out.host_advance = NULL
 
     # Setup operator
     op.type = <cccl_op_kind_t>op_kind
-    op.state = NULL
+    op.name = NULL
+    op.code = NULL
+    op.code_size = 0
+    op.code_type = CCCL_OP_CODE_PTXAS
     op.size = 0
     op.alignment = 1
+    op.state = NULL
 
     # Setup init value
+    h_init.type.type = <cccl_type_enum>type_enum
+    h_init.type.size = dtype_size
+    h_init.type.alignment = dtype_alignment
     h_init.state = <void*><size_t>init_value
-    h_init.type = <cccl_type_enum>type_enum
-    h_init.size = dtype_size
-    h_init.alignment = dtype_alignment
 
     # Phase 1: Query temp storage size
     err = cccl_device_reduce(
-        build,
+        build,  # Pass by value (dereferenced)
         NULL,
         &temp_storage_bytes,
         d_in,
@@ -249,7 +310,7 @@ def reduce_execute(
 
     # Phase 2: Execute reduce
     err = cccl_device_reduce(
-        build,
+        build,  # Pass by value (dereferenced)
         d_temp_storage,
         &temp_storage_bytes,
         d_in,
@@ -272,14 +333,63 @@ def reduce_execute(
 
 def reduce_cleanup(build_handle):
     """
-    Cleanup reduce build result.
+    Cleanup reduce build result and free memory.
     """
-    cdef cccl_device_reduce_build_result_t build = <cccl_device_reduce_build_result_t><size_t>build_handle
+    cdef cccl_device_reduce_build_result_t* build = <cccl_device_reduce_build_result_t*><size_t>build_handle
     cdef mcError_t err
 
-    err = cccl_device_reduce_cleanup(&build)
+    # Call cleanup (pass pointer)
+    err = cccl_device_reduce_cleanup(build)
 
     if err != 0:
+        free(build)  # Free even on error
         raise RuntimeError(f"cccl_device_reduce_cleanup failed with error {err}")
 
+    # Free heap memory
+    free(build)
+
+    return 0
+
+
+# GPU memory helpers
+def gpu_malloc(size_t size):
+    """Allocate GPU memory and return device pointer."""
+    cdef void* dev_ptr = NULL
+    cdef mcError_t err = mcMalloc(&dev_ptr, size)
+    if err != 0:
+        raise RuntimeError(f"mcMalloc failed with error {err}")
+    return <size_t>dev_ptr
+
+
+def gpu_free(size_t dev_ptr):
+    """Free GPU memory."""
+    cdef mcError_t err = mcFree(<void*>dev_ptr)
+    if err != 0:
+        raise RuntimeError(f"mcFree failed with error {err}")
+    return 0
+
+
+def gpu_memcpy_h2d(size_t dst, size_t src, size_t count):
+    """Copy from host to device."""
+    cdef mcError_t err = mcMemcpy(
+        <void*>dst,
+        <const void*>src,
+        count,
+        mcMemcpyHostToDevice
+    )
+    if err != 0:
+        raise RuntimeError(f"mcMemcpy H2D failed with error {err}")
+    return 0
+
+
+def gpu_memcpy_d2h(size_t dst, size_t src, size_t count):
+    """Copy from device to host."""
+    cdef mcError_t err = mcMemcpy(
+        <void*>dst,
+        <const void*>src,
+        count,
+        mcMemcpyDeviceToHost
+    )
+    if err != 0:
+        raise RuntimeError(f"mcMemcpy D2H failed with error {err}")
     return 0

@@ -18,11 +18,12 @@ class OpKind(IntEnum):
     """
     Builtin reduction operators.
     These map directly to cccl_op_kind_t in C API.
+    Values match actual CCCL C API from types_official.h
     """
-    SUM = 0    # CCCL_SUM
-    MIN = 1    # CCCL_MIN
-    MAX = 2    # CCCL_MAX
-    PROD = 3   # CCCL_PROD (if supported)
+    SUM = 2     # CCCL_PLUS
+    MIN = 22    # CCCL_MINIMUM
+    MAX = 23    # CCCL_MAXIMUM
+    PROD = 4    # CCCL_MULTIPLIES
 
 
 class TypeEnum(IntEnum):
