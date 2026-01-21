@@ -163,7 +163,7 @@ def reduce_build(
     d_in.state = <void*><size_t>d_in_ptr
     d_in.size = dtype_size
     d_in.alignment = dtype_alignment
-    d_in.type = CCCL_ITERATOR_POINTER
+    d_in.type = <cccl_iterator_kind_t>0  # CCCL_ITERATOR_POINTER = 0
     d_in.value_type.type = <cccl_type_enum>type_enum
     d_in.value_type.size = dtype_size
     d_in.value_type.alignment = dtype_alignment
@@ -174,7 +174,7 @@ def reduce_build(
     d_out.state = <void*><size_t>d_out_ptr
     d_out.size = dtype_size
     d_out.alignment = dtype_alignment
-    d_out.type = CCCL_ITERATOR_POINTER
+    d_out.type = <cccl_iterator_kind_t>0  # CCCL_ITERATOR_POINTER = 0
     d_out.value_type.type = <cccl_type_enum>type_enum
     d_out.value_type.size = dtype_size
     d_out.value_type.alignment = dtype_alignment
@@ -185,7 +185,7 @@ def reduce_build(
     op.name = NULL
     op.code = NULL
     op.code_size = 0
-    op.code_type = CCCL_OP_CODE_PTXAS
+    op.code_type = <cccl_op_code_type>0  # CCCL_OP_CODE_PTXAS = 0
     op.size = 0
     op.alignment = 1
     op.state = NULL
@@ -255,7 +255,7 @@ def reduce_execute(
     d_in.state = <void*><size_t>d_in_ptr
     d_in.size = dtype_size
     d_in.alignment = dtype_alignment
-    d_in.type = CCCL_ITERATOR_POINTER
+    d_in.type = <cccl_iterator_kind_t>0  # CCCL_ITERATOR_POINTER = 0
     d_in.value_type.type = <cccl_type_enum>type_enum
     d_in.value_type.size = dtype_size
     d_in.value_type.alignment = dtype_alignment
@@ -264,7 +264,7 @@ def reduce_execute(
     d_out.state = <void*><size_t>d_out_ptr
     d_out.size = dtype_size
     d_out.alignment = dtype_alignment
-    d_out.type = CCCL_ITERATOR_POINTER
+    d_out.type = <cccl_iterator_kind_t>0  # CCCL_ITERATOR_POINTER = 0
     d_out.value_type.type = <cccl_type_enum>type_enum
     d_out.value_type.size = dtype_size
     d_out.value_type.alignment = dtype_alignment
@@ -275,7 +275,7 @@ def reduce_execute(
     op.name = NULL
     op.code = NULL
     op.code_size = 0
-    op.code_type = CCCL_OP_CODE_PTXAS
+    op.code_type = <cccl_op_code_type>0  # CCCL_OP_CODE_PTXAS = 0
     op.size = 0
     op.alignment = 1
     op.state = NULL
