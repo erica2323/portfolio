@@ -147,11 +147,10 @@ def reduce(
     op_kind = int(op)
 
     # Convert init value to C-compatible format
-    init_c = dtype.type(init)  # Convert to numpy scalar of correct type
-    init_ptr = ctypes.cast(
-        ctypes.pointer(init_c.ctypes),
-        ctypes.c_void_p
-    ).value
+    # IMPORTANT: Create a numpy array to hold the init value and keep it alive
+    # during the entire reduce operation. The C API expects a pointer to valid memory.
+    init_array = np.array([init], dtype=dtype)
+    init_ptr = init_array.ctypes.data
 
     # Convert stream
     stream_ptr = 0
